@@ -168,14 +168,16 @@ function jsonEdit(v: unknown): Edit | null {
     const add = patchLines(o.new_str);
     return (tree) => {
       const before = exists(tree);
-      const nl = before.indexOf('\n');
-      const br = nl > 0 && before[nl - 1] === '\r' ? '\r\n' : '\n';
-      const lines = before === '' ? [] : before.split(br);
-      const final = before !== '' && before.endsWith(br);
-      if (final) lines.pop();
+      // Use the shared section-3 file model (splitFile/joinFile) instead of
+      // re-deriving the break, lines and final-break flag inline: every other
+      // format goes through these helpers, and a private copy here could
+      // drift from them (e.g. for an empty file or a CRLF file whose final
+      // break must stay exactly as it was, section 9).
+      const fm = splitFile(before);
+      const lines = [...fm.lines];
       if (line < 0 || line > lines.length) throw new Fail('no-match', p);
       lines.splice(line, 0, ...add);
-      tree.now.set(p, lines.length === 0 ? '' : lines.join(br) + (final ? br : ''));
+      tree.now.set(p, joinFile(lines, fm.br, fm.final));
     };
   }
   return null;
